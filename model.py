@@ -210,31 +210,6 @@ class Model():
 		pickle.dump(data, fr)
 		fr.close()
 
-	def load_friend_origin(self):
-		print('social reg loading...')
-		# fr = open('friends_new.pkl','rb')
-		# data = pickle.load(fr)
-		# fr.close()
-
-		# num_user = data['num_user']
-		# f_dic = data['f_dic']
-		# f_matrix = np.zeros((num_user, num_user))
-		# for i in f_dic.keys():
-		# 	f_matrix[i][f_dic[i]] = 1
-		# return f_matrix
-		f_matrix = np.load('./friends_new.npy')
-		row,col = np.where(f_matrix!=0)
-		for r,c in zip(row,col):
-			rand = np.random.random()
-			if rand>0.68:
-				f_matrix[r][c] = 0
-				col_rand = np.random.randint(len(f_matrix[0]))
-				f_matrix[r][col_rand] = 1
-		np.save('friends_new1', f_matrix)
-		return f_matrix
-
-
-
 	def load_friend(self):
 		print('social reg loading...')
 		f_matrix = np.load('./s_matrix_1.npy')

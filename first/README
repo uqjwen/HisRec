@@ -1,1 +1,4 @@
 
+using d_structure.py to create structural network data "s_matrix_1.npy"
+typing the following commend:
+python3 d_structure.py 

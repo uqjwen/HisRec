@@ -52,7 +52,7 @@ from tensorflow.python.training.moving_averages import assign_moving_average
 class Model():
 
 	def __init__(self,batch_size,layers,
-				num_user,num_item,hidden_size, user_profile):
+				num_user,num_item,hidden_size, user_profile, item_profile):
 		print("Building model...")
 		self.num_user = num_user
 		self.num_item = num_item
@@ -116,6 +116,7 @@ class Model():
 		self.cost = self.loss+\
 					0.0001*reg_error+\
 					reg_rate*self.attentive_embedding(self.user_input, self.user_embedding_matrix, user_profile)+\
+					# reg_rate*self.attentive_embedding_i(self.item_input, self.item_embedding_matrix, item_profile)+\
 					reg_rate*self.regularization(self.user_input, self.user_embedding_matrix)
 
 		self.train_op = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(self.cost)
@@ -136,6 +137,44 @@ class Model():
 
 
 		reg = tf.reduce_sum(tf.square(batch_f_embedding - batch_u_embedding))
+
+		return reg
+
+	def attentive_embedding_i(self, item_input, item_embedding_matrix, item_profile):
+		i_matrix = self.load_item_net().astype(np.float32)
+		batch_item_profile = tf.nn.embedding_lookup(item_profile, item_input)
+		batch_item_neighbor = tf.nn.embedding_lookup(i_matrix, item_input)
+		profile_size = item_profile.shape[-1]
+
+
+
+		immediate_size = 100
+		w_v_1 = tf.get_variable('wv1', shape=[profile_size, immediate_size], initializer = tf.contrib.layers.xavier_initializer())
+		w_v_2 = tf.get_variable('wv2', shape=[profile_size, immediate_size], initializer = tf.contrib.layers.xavier_initializer())
+		v_1 = tf.get_variable('v1', shape=[immediate_size,1],initializer = tf.contrib.layers.xavier_initializer())
+
+
+		batch_item_profile = tf.matmul(batch_item_profile, w_v_1)
+		expand_batch_item_profile = tf.expand_dims(batch_item_profile, 1)
+		tile_batch_item_profile = tf.tile(expand_batch_item_profile, [1,self.num_item, 1])
+
+		wv2_item_profile = tf.matmul(item_profile, w_v_2)
+
+		interaction = tf.reshape(tile_batch_item_profile+wv2_item_profile,[-1,profile_size])
+		element_dot_v = tf.matmul(tf.nn.tanh(interaction),v_1)
+
+
+		item2item = tf.reshape(element_dot_v,[batch_size, self.num_item])
+		item2item = tf.multiply(item2item, batch_item_neighbor)
+
+		item_weight = tf.nn.softmax(5*item2item)
+
+		batch_weight_embedding = tf.matmul(item_weight, item_embedding_matrix)
+
+
+		batch_item_embedding = tf.nn.embedding_lookup(item_embedding_matrix, item_input)
+
+		reg = tf.reduce_sum(tf.square(batch_item_embedding - batch_weight_embedding))
 
 		return reg
 
@@ -170,9 +209,9 @@ class Model():
 		element_dot_v = tf.matmul(element_dot_w,v)
 
 
-		user2user = tf.reshape(element_dot_v,[batch_size, self.num_user])
+		user2user = tf.reshape(element_dot_v,[batch_size, self.num_user])##each user in the batch to all the users温家辉
 		# user2user = tf.multiply(user2user, batch_s_matrix)
-		usre2user = tf.multiply(user2user, batch_user_friend)
+		usre2user = tf.multiply(user2user, batch_user_friend) ## filter out his friends
 
 
 
@@ -190,7 +229,7 @@ class Model():
 		# user_weight = tf.nn.softmax(tf.multiply(user2user, batch_user_friend))
 		user_weight = tf.nn.softmax(5*user2user)
 
-		batch_weight_embedding = tf.matmul(user_weight, user_embedding_matrix)
+		batch_weight_embedding = tf.matmul(user_weight, user_embedding_matrix)##weight sum embedding of his friend
 
 
 		batch_user_embedding = tf.nn.embedding_lookup(user_embedding_matrix, user_input)
@@ -210,6 +249,11 @@ class Model():
 		pickle.dump(data, fr)
 		fr.close()
 
+
+
+
+
+
 	def load_friend(self):
 		print('social reg loading...')
 		f_matrix = np.load('./s_matrix_1.npy')
@@ -226,6 +270,13 @@ class Model():
 		# return f_matrix
 
 
+
+	def load_item_net(self):
+		print('item net loading...')
+		i_matrix = np.load('./s_matrix_2.npy')
+		return i_matrix
+
+
 class Data_Loader():
 	def __init__(self, batch_size):
 		print("data loading...")
@@ -240,6 +291,7 @@ class Data_Loader():
 		self.batch_size = batch_size
 		# self.user_profile = np.random.random((self.num_user,200)).astype(np.float32)
 		self.user_profile = np.load('./user_profile.npy')
+		self.item_profile = np.load('./item_profile.npy')
 
 
 	def reset_data(self):
@@ -445,7 +497,8 @@ if __name__ == '__main__':
 				num_user = data_loader.num_user,
 				num_item = data_loader.num_item,
 				hidden_size = hidden_size,
-				user_profile = data_loader.user_profile)
+				user_profile = data_loader.user_profile,
+				item_profile = data_loader.item_profile)
 	if sys.argv[1]=="test":
 		test(1024, data_loader, model)
 	else:

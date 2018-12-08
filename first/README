@@ -1,5 +1,7 @@
+"data.pkl" contains the user-item interactions data and the split data use for training, validation and testing. 
 
-using d_structure.py to create structural network data "s_matrix_1.npy". pls download item structural network data "s_matrix_2.pkl" from:
-https://pan.baidu.com/s/1PjSrx1w2iUSoZShGyGN1jQ, and create "s_matrix_2.npy" the same way as "s_matrix_1.npy"
-typing the following commend:
-python3 d_structure.py 
+"friends.pkl" contains the social links among users, and it can be decoded into an adjacant matrix (size of [num_user, num_user]) with function load_friend() in the hisrec.py file
+
+"use_profile.npy" contains the normalized user attributes of size [num_user, profile_size=231]
+
+"neighbor.npy" of size [num_user,similar_neighbor=20] is an adjacent matrix containing a specified number of linked social neighbors for each user, the introduction of this file is to speed up the training of attentive representation learning. 
